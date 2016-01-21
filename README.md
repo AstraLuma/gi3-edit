@@ -10,3 +10,16 @@ desktop environment for i3.
 ## Usage
 
 Ctrl-Shift-P will open a dmenu of available actions. If you try to use this for real, you'll probably break something.
+
+## Compiling
+This uses [autovala](https://github.com/rastersoft/autovala) to construct the build system. It should be something like:
+
+```
+$ autovala update
+$ mkdir install
+$ cd install
+$ cmake ..
+$ make
+```
+
+But you should probably read the docs.
