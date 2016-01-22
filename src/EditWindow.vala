@@ -83,7 +83,7 @@ namespace Mark {
             swText.add(svText);
             
             sbData = svText.buffer as SourceBuffer;
-            assert(sbData != null);
+            assert_nonnull(sbData);
             sbData.highlight_matching_brackets = true;
             sbData.highlight_syntax = true;
             // TODO: Have this in an option or action
@@ -110,6 +110,23 @@ namespace Mark {
             sssman = SourceStyleSchemeManager.get_default();
             
             build_ui();
+            
+            source.notify["location"].connect((_) => {
+                if (source.location == null) {
+                    title = Environment.get_application_name();
+                } else {
+                    string dn;
+                    try {
+                        dn = source.location
+                            .query_info(FileAttribute.STANDARD_DISPLAY_NAME, FileQueryInfoFlags.NONE)
+                            .get_attribute_string(FileAttribute.STANDARD_DISPLAY_NAME);
+                    } catch (Error e) {
+                        assert_no_error(e);
+                    }
+                    assert_nonnull(dn);
+                    title = @"$(Environment.get_application_name()):$(dn)";
+                }
+            });
             
             this.notify["command-palette"].connect((_) => {
                 // FIXME: Remove ourselves from the previous group
@@ -144,12 +161,11 @@ namespace Mark {
          */
         private void real_save_as(FileCallback? fc) {
             stdout.printf("Save as...\n");
-            stdout.printf("Open!\n");
             FileChooserDialog fcd = new FileChooserDialog(
-                "Save as...", this, FileChooserAction.SAVE,
-                "_Cancel", Gtk.ResponseType.CANCEL,
-				"_Save", Gtk.ResponseType.ACCEPT
-			);
+                _("Save as..."), this, FileChooserAction.SAVE,
+                _("_Cancel"), Gtk.ResponseType.CANCEL,
+                _("_Save"), Gtk.ResponseType.ACCEPT
+            );
             fcd.response.connect((response) => {
                 if (response == ResponseType.ACCEPT) {
                     var file = fcd.get_file();

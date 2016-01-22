@@ -47,7 +47,11 @@ namespace Mark {
         
         public static int main(string[] args) {
             warn_if_fail(Thread.supported());
-            Environment.set_application_name("Mark");
+	    /*Intl.bindtextdomain( Config.GETTEXT_PACKAGE, Config.LOCALEDIR );
+	    Intl.bind_textdomain_codeset( Config.GETTEXT_PACKAGE, "UTF-8" );
+	    Intl.textdomain( Config.GETTEXT_PACKAGE );*/
+
+            Environment.set_application_name(_("Mark"));
             return new MarkApp().run(args);
         }
         
@@ -64,7 +68,7 @@ namespace Mark {
             this.add_action(mkaction("-show-palette", () => {
                 stdout.printf("Palette time\n");
                 var ew = active_window as EditWindow;
-                assert(ew != null);
+                assert_nonnull(ew);
                 ew.command_palette.show();
             }));
 
@@ -73,10 +77,10 @@ namespace Mark {
         private void do_open() {
             stdout.printf("Open!\n");
             FileChooserDialog fcd = new FileChooserDialog(
-                "Open", active_window, FileChooserAction.OPEN,
-                "_Cancel", Gtk.ResponseType.CANCEL,
-				"_Open", Gtk.ResponseType.ACCEPT
-			);
+                _("Open"), active_window, FileChooserAction.OPEN,
+                _("_Cancel"), Gtk.ResponseType.CANCEL,
+                _("_Open"), Gtk.ResponseType.ACCEPT
+            );
             fcd.response.connect((response) => {
                 if (response == ResponseType.ACCEPT) {
                     var file = fcd.get_file();
