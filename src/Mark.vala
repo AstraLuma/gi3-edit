@@ -2,9 +2,12 @@ using Gtk;
 namespace Mark {
 
     class MarkApp : Gtk.Application {
+    
+        private void common_setup(EditWindow win) {
+            set_accels_for_action("app.-show-palette", {"<Primary><Shift>p"});
+        }        
         
         protected override void activate () {
-            set_accels_for_action("app.-show-palette", {"<Primary><Shift>p"});
             stdout.printf("Activate\n");
             var win = new_window();
             win.show_all();
@@ -22,6 +25,7 @@ namespace Mark {
                 win = new EditWindow.with_file(this, cp, file);
             }
             add_window(win);
+            common_setup(win);
             return win;
         }        
         
@@ -58,6 +62,7 @@ namespace Mark {
             this.add_action(mkaction("open", do_open));
             
             this.add_action(mkaction("-show-palette", () => {
+                stdout.printf("Palette time\n");
                 var ew = active_window as EditWindow;
                 assert(ew != null);
                 ew.command_palette.show();

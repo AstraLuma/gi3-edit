@@ -2,6 +2,8 @@ using Gtk;
 using Gdk;
 
 namespace Mark {
+    delegate void FileCallback(File? file);
+    
     class EditWindow : ApplicationWindow {
         private SourceView svText;
         private ScrolledWindow swText;
@@ -42,7 +44,13 @@ namespace Mark {
             var sfl = new SourceFileLoader(sbData, source);
             sfl.load_async.begin(0, null, (cur, total) => {
                 stdout.printf(@"Loading $(cur)/$(total)\n");
-            }, () => {
+            }, (obj, res) => {
+                try {
+                    sfl.load_async.end(res);
+                } catch (Error e) {
+                    stderr.printf(@"Error loading: $(e.message)\n");
+                    return;
+                }
                 stdout.printf(@"Guessing language...\n");
                 var lang = slman.guess_language(file.get_uri(), sbData.text);
                 if (lang != null) {
@@ -93,7 +101,7 @@ namespace Mark {
             });
             
             this.add_action(mkaction("save", do_save));
-            this.add_action(mkaction("save-as", do_save_as));
+            this.add_action(mkaction("save-as", do_save_as)); // TODO: Let this action take an argument
             // TODO: All the languages
         }
                 
@@ -115,32 +123,68 @@ namespace Mark {
             if (source.location == null) {
                 // Hasn't been saved. Do the save as process, but use the 
                 // location it got saved to as the document's location.
-                source.location = real_save_as();
+                real_save_as((file) => {
+                    source.location = file;
+                });
                 return;
             }
             stdout.printf("Save!\n");
-            save_to(source.location);
+            save_to.begin(source.location, (obj, res) => {
+                save_to.end(res);
+            });
         }
         
         private void do_save_as() {
-            real_save_as();
+            real_save_as(null);
         }
         
         /**
          * All the work of Save As, but returns where it got saved to, or null 
          * if the user cancelled.
          */
-        private File? real_save_as() {
+        private void real_save_as(FileCallback? fc) {
             stdout.printf("Save as...\n");
-            return null;
-            // 1. Prompt for file
-            // 2. save_to(file)
+            stdout.printf("Open!\n");
+            FileChooserDialog fcd = new FileChooserDialog(
+                "Save as...", this, FileChooserAction.SAVE,
+                "_Cancel", Gtk.ResponseType.CANCEL,
+				"_Save", Gtk.ResponseType.ACCEPT
+			);
+            fcd.response.connect((response) => {
+                if (response == ResponseType.ACCEPT) {
+                    var file = fcd.get_file();
+                    var uri = fcd.get_uri();
+                    assert(file.get_uri() == uri);
+                    
+                    save_to.begin(file, (obj, res) => {
+                        save_to.end(res);
+                    });
+                    if (fc != null) {
+                        Idle.add(() => {
+                            fc(file);
+                            return false;
+                        });
+                    }
+                }
+                fcd.close();
+            });
+            fcd.show();
         }
         
         /**
          * Writes out to the given file.
          */
-        private void save_to(File dest) {
+        private async void save_to(File dest) {
+            var sfs = new SourceFileSaver.with_target(sbData, source, dest);
+            // TODO: Set encoding, compression, newlines, flags
+            try {
+                yield sfs.save_async(0, null, (current, total) => {
+                    stdout.printf(@"Saved: $(current)/$(total)\n");
+                });
+                stdout.printf("Finished save\n");
+            } catch (Error e) {
+                stderr.printf(@"Error saving: $(e.message)\n");
+            }
         }
         
     }
