@@ -5,6 +5,12 @@ namespace Mark {
     
         private void common_setup(EditWindow win) {
             set_accels_for_action("app.-show-palette", {"<Primary><Shift>p"});
+            set_accels_for_action("app.open", {"<Primary>o"});
+            set_accels_for_action("app.new", {"<Primary>n"});
+            // FIXME: do this in the window
+            set_accels_for_action("win.save", {"<Primary>s"});
+            set_accels_for_action("win.save-as", {"<Primary><Shift>s"});
+            set_accels_for_action("win.close-window", {"<Primary>w"});
         }        
         
         protected override void activate () {

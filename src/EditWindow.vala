@@ -15,9 +15,7 @@ namespace Mark {
         
         public CommandPalette? command_palette {get; set construct;}
         
-        public bool dirty { get {
-            return true; // FIXME
-        }}
+        public bool dirty { get; private set; }
         
         public string? etag {get; private set;}
         public SourceFile source {get; construct;}
@@ -59,11 +57,18 @@ namespace Mark {
                 } else {
                     stdout.printf("\tDunno.\n");
                 }
+                
+                // This has to be done after the changed signal
+                // FIXME: More deterministic way to handle this?
+                Idle.add(() => {
+                    dirty = false;
+                    return false;
+                });
             });
        }
        
        private void build_ui() {
-            this.title = Environment.get_application_name();
+            update_title();
 
             swText = new ScrolledWindow(null, null);
             this.add(swText);
@@ -91,6 +96,10 @@ namespace Mark {
             foreach (var scheme in sssman.get_scheme_ids()) {
                 stdout.printf(@"Scheme: $scheme\n");
             }
+            
+            sbData.changed.connect(() => {
+                dirty = true;
+            });
         }
         
         private void populate_actions() {
@@ -102,7 +111,27 @@ namespace Mark {
             
             this.add_action(mkaction("save", do_save));
             this.add_action(mkaction("save-as", do_save_as)); // TODO: Let this action take an argument
-            // TODO: All the languages
+            this.add_action(mkaction("close-window", close));
+        }
+        
+        private void update_title() {
+            if (source.location == null) {
+                title = Environment.get_application_name();
+            } else {
+                string? dn = null;
+                try {
+                    dn = source.location
+                        .query_info(FileAttribute.STANDARD_DISPLAY_NAME, FileQueryInfoFlags.NONE)
+                        .get_attribute_string(FileAttribute.STANDARD_DISPLAY_NAME);
+                } catch (Error e) {
+                    assert_no_error(e);
+                }
+                assert_nonnull(dn);
+                title = @"$(Environment.get_application_name()):$(dn)";
+            }
+            if (dirty) {
+                title += "*";
+            }
         }
                 
         construct {
@@ -112,25 +141,16 @@ namespace Mark {
             build_ui();
             
             source.notify["location"].connect((_) => {
-                if (source.location == null) {
-                    title = Environment.get_application_name();
-                } else {
-                    string dn;
-                    try {
-                        dn = source.location
-                            .query_info(FileAttribute.STANDARD_DISPLAY_NAME, FileQueryInfoFlags.NONE)
-                            .get_attribute_string(FileAttribute.STANDARD_DISPLAY_NAME);
-                    } catch (Error e) {
-                        assert_no_error(e);
-                    }
-                    assert_nonnull(dn);
-                    title = @"$(Environment.get_application_name()):$(dn)";
-                }
+                update_title();
             });
             
             this.notify["command-palette"].connect((_) => {
                 // FIXME: Remove ourselves from the previous group
                 command_palette.add_action_group(this);
+            });
+            
+            this.notify["dirty"].connect((_) => {
+                update_title();
             });
             
             populate_actions();
@@ -197,6 +217,7 @@ namespace Mark {
                 yield sfs.save_async(0, null, (current, total) => {
                     stdout.printf(@"Saved: $(current)/$(total)\n");
                 });
+                dirty = false;
                 stdout.printf("Finished save\n");
             } catch (Error e) {
                 stderr.printf(@"Error saving: $(e.message)\n");
