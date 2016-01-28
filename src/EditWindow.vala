@@ -100,6 +100,8 @@ namespace Mark {
             sbData.changed.connect(() => {
                 dirty = true;
             });
+            
+            delete_event.connect(do_delete_event);
         }
         
         private void populate_actions() {
@@ -224,5 +226,40 @@ namespace Mark {
             }
         }
         
+        private bool do_delete_event(EventAny event) {
+            // FIXME: Do this more async, not blocking.
+            if (!dirty) {
+                return false;
+            }
+            // Prompt user to save or discard.
+            var dlg = new Dialog.with_buttons(
+                "Unsaved changes!", this, DialogFlags.MODAL,
+                "Save", ResponseType.APPLY,
+                "Cancel", ResponseType.CANCEL,
+                "Don't Save", ResponseType.CLOSE
+            );
+            // I don't like using run(), recursive event loops just feels wrong
+            var resp = dlg.run();
+            dlg.destroy();
+            
+            switch (resp) {
+                case ResponseType.DELETE_EVENT:
+                case ResponseType.NONE:
+                case ResponseType.CANCEL:
+                    // Abort the close process
+                    return true;
+                
+                case ResponseType.CLOSE:
+                    // Close anyway, ignore the dirty flag
+                    return false;
+                
+                case ResponseType.APPLY:
+                    // Save, then exit
+                    do_save(); // Totally borrowing the save action handler
+                    return false;
+            }
+            assert_not_reached();
+            return true; // If we get here, don't close out and possibly loose stuff.
+        }
     }
 }
