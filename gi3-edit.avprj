@@ -4,7 +4,7 @@ project_name: gi3-edit
 *vala_version: 0.30
 
 define: DEBUG
-
+compile_options: -g
 
 vala_binary: src/gi3-edit
 vala_check_package: gtksourceview-3.0
