@@ -103,11 +103,13 @@ namespace Mark {
             delete_event.connect(do_delete_event);
             
             focus_in_event.connect((_) => {
+                stdout.printf("focus_in_event\n");
                 do_file_check();
                 return false;
             });
             
             enter_notify_event.connect((_) => {
+                stdout.printf("enter_notify_event\n");
                 do_file_check();
                 return false;
             });
@@ -137,6 +139,11 @@ namespace Mark {
                 } catch (Error e) {
                     assert_no_error(e);
                 }
+                if (dn == null && !source.location.query_exists()) { // Actually goes out to the filesystem
+                    // Not sure if this is the only time dn can be null. 
+                    // I thought it could figure out display name by the path alone?
+                    dn = @"(new)$(source.location.get_uri())";
+                }
                 assert_nonnull(dn);
                 title = @"$(Environment.get_application_name()):$(dn)";
             }
@@ -165,6 +172,16 @@ namespace Mark {
             });
             
             populate_actions();
+            
+            // FIXME: When does this need to be refreshed and/or cleaned up?
+            try {
+                source.location.monitor(FileMonitorFlags.WATCH_HARD_LINKS)
+                .changed.connect((file, other, evt) => {
+                    source.check_file_on_disk();
+                });
+            } catch (GLib.Error e) {
+                assert_no_error(e);
+            }
         }
                 
         private void do_save() {
