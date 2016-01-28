@@ -17,7 +17,6 @@ namespace Mark {
         
         public bool dirty { get; private set; }
         
-        public string? etag {get; private set;}
         public SourceFile source {get; construct;}
         
         public EditWindow(Gtk.Application application, CommandPalette? cp=null) {
@@ -102,6 +101,16 @@ namespace Mark {
             });
             
             delete_event.connect(do_delete_event);
+            
+            focus_in_event.connect((_) => {
+                do_file_check();
+                return false;
+            });
+            
+            enter_notify_event.connect((_) => {
+                do_file_check();
+                return false;
+            });
         }
         
         private void populate_actions() {
@@ -226,8 +235,15 @@ namespace Mark {
             }
         }
         
+        // Checks if the file was externally edited or deleted, and notify the user
+        private void do_file_check() {
+            if (source.is_deleted() || source.is_externally_modified()) {
+                dirty = true;
+            }
+        }
+        
         private bool do_delete_event(EventAny event) {
-            // FIXME: Do this more async, not blocking.
+            // FIXME: Do this more async, less blocking.
             if (!dirty) {
                 return false;
             }
@@ -256,10 +272,11 @@ namespace Mark {
                 case ResponseType.APPLY:
                     // Save, then exit
                     do_save(); // Totally borrowing the save action handler
+                    // Except that save_to() is an async. Crap.
                     return false;
+                default:
+                    assert_not_reached();
             }
-            assert_not_reached();
-            return true; // If we get here, don't close out and possibly loose stuff.
         }
     }
 }
